@@ -31,6 +31,13 @@ export async function POST(req: NextRequest) {
   const specialty = await Specialty.create({
     name: body.name,
     description: body.description || "",
+    consultationPrice:
+      body.consultationPrice === undefined || body.consultationPrice === null || body.consultationPrice === ""
+        ? null
+        : Number.isFinite(Number(body.consultationPrice))
+          ? Number(body.consultationPrice)
+          : null,
+    showPricePublicly: body.showPricePublicly ?? true,
     active: body.active ?? true,
   });
 

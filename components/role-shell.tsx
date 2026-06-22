@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { LogOut, Menu, Stethoscope, X } from "lucide-react";
 import { useState, type ElementType, type ReactNode } from "react";
 
@@ -8,6 +9,8 @@ type NavItem = { id: string; label: string; icon: ElementType };
 export function RoleShell({
   userName,
   roleLabel,
+  clinicName = "MediClinic",
+  clinicLogoUrl = "",
   navItems,
   active,
   onNavigate,
@@ -16,6 +19,8 @@ export function RoleShell({
 }: {
   userName: string;
   roleLabel: string;
+  clinicName?: string;
+  clinicLogoUrl?: string;
   navItems: NavItem[];
   active: string;
   onNavigate: (id: string) => void;
@@ -29,11 +34,15 @@ export function RoleShell({
     <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <header className="md:hidden fixed top-0 inset-x-0 z-50 h-16 px-4 flex items-center justify-between border-b border-slate-200/70 bg-white/95 backdrop-blur">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Stethoscope className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+            {clinicLogoUrl ? (
+              <Image src={clinicLogoUrl} alt={clinicName} width={32} height={32} className="h-full w-full object-cover" />
+            ) : (
+              <Stethoscope className="w-4 h-4 text-white" />
+            )}
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-slate-900 text-sm leading-none truncate">MediClinic</p>
+            <p className="font-bold text-slate-900 text-sm leading-none truncate">{clinicName}</p>
             <p className="text-[11px] text-slate-500 truncate">{roleLabel}</p>
           </div>
         </div>
@@ -72,11 +81,15 @@ export function RoleShell({
         <div className="hidden md:flex items-center justify-between px-4 py-4 border-b border-white/5">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
-                <Stethoscope className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center overflow-hidden">
+                {clinicLogoUrl ? (
+                  <Image src={clinicLogoUrl} alt={clinicName} width={32} height={32} className="h-full w-full object-cover" />
+                ) : (
+                  <Stethoscope className="w-4 h-4 text-white" />
+                )}
               </div>
-              <span className="font-bold text-white text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                MediClinic
+              <span className="font-bold text-white text-sm truncate" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                {clinicName}
               </span>
             </div>
           )}
@@ -92,11 +105,15 @@ export function RoleShell({
 
         <div className="md:hidden flex items-center justify-between px-4 py-4 border-b border-white/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
-              <Stethoscope className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center overflow-hidden">
+              {clinicLogoUrl ? (
+                <Image src={clinicLogoUrl} alt={clinicName} width={32} height={32} className="h-full w-full object-cover" />
+              ) : (
+                <Stethoscope className="w-4 h-4 text-white" />
+              )}
             </div>
-            <span className="font-bold text-white text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              MediClinic
+            <span className="font-bold text-white text-sm truncate" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {clinicName}
             </span>
           </div>
           <button

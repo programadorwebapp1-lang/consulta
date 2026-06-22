@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Calendar, Edit2, KeyRound, Plus, RefreshCw, Stethoscope, Users, XCircle } from "lucide-react";
+import { BadgeCheck, Calendar, Edit2, KeyRound, MessageCircle, Plus, RefreshCw, Sparkles, Stethoscope, Users, XCircle } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { Button, Card, Empty, Input, Modal, PageHeader, Select, StatCard, Textarea } from "@/components/system-ui";
 import { PasswordInput } from "@/components/password-input";
 import { DAY_NAMES } from "@/lib/medical";
 import { PhotoPicker } from "@/components/photo-picker";
 import { fireSwal } from "@/lib/swal";
+import { PublicSettingsForm } from "@/components/admin/public-settings-form";
 
 type AnyRecord = Record<string, any>;
 
@@ -19,6 +20,7 @@ const navItems = [
   { id: "specialties", label: "Especialidades", icon: BadgeCheck },
   { id: "users", label: "Usuários", icon: Users },
   { id: "appointments", label: "Consultas", icon: Calendar },
+  { id: "publicPage", label: "Página Pública", icon: Sparkles },
 ];
 
 function resolveName(value: any) {
@@ -29,6 +31,36 @@ function resolveName(value: any) {
 
 function activeLabel(active: boolean) {
   return active ? "Ativo" : "Inativo";
+}
+
+function cleanPhone(value?: string) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function normalizeWhatsAppPhone(value?: string) {
+  const digits = cleanPhone(value);
+  if (!digits) return "";
+  return digits.startsWith("55") && digits.length > 11 ? digits : `55${digits}`;
+}
+
+function buildWhatsAppLink(patient: AnyRecord, appointment: AnyRecord) {
+  const phone = normalizeWhatsAppPhone(patient?.phone);
+  if (!phone) return "";
+
+  const doctorName = resolveName(appointment.doctorId);
+  const specialtyName = resolveName(appointment.specialtyId);
+  const patientName = resolveName(patient);
+  const message = [
+    `Olá, ${patientName}!`,
+    "",
+    `A sua consulta está agendada para ${appointment.date} às ${appointment.time}.`,
+    `Especialidade: ${specialtyName}.`,
+    `Profissional: ${doctorName}.`,
+    "",
+    "Se precisar reagendar ou confirmar, responda por aqui.",
+  ].join("\n");
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 export default function AdminPage() {
@@ -106,8 +138,14 @@ export default function AdminPage() {
   }, [data]);
 
   async function saveDoctor() {
-    if (!doctorModal?.name || !doctorModal?.crm || !doctorModal?.specialtyId) {
-      setMessage("Preencha nome, CRM e especialidade.");
+    const specialtyIds = Array.isArray(doctorModal?.specialtyIds)
+      ? doctorModal.specialtyIds.map((item: any) => String(item)).filter(Boolean)
+      : doctorModal?.specialtyId
+        ? [String(doctorModal.specialtyId?._id || doctorModal.specialtyId)]
+        : [];
+
+    if (!doctorModal?.name || !doctorModal?.crm || specialtyIds.length === 0) {
+      setMessage("Preencha nome, CRM e selecione ao menos uma especialidade.");
       return;
     }
     const payload = new FormData();
@@ -115,10 +153,12 @@ export default function AdminPage() {
     payload.append("email", doctorModal.email || "");
     payload.append("phone", doctorModal.phone || "");
     payload.append("crm", doctorModal.crm);
-    payload.append("specialtyId", doctorModal.specialtyId?._id || doctorModal.specialtyId);
+    payload.append("specialtyId", specialtyIds[0]);
+    payload.append("specialtyIds", JSON.stringify(specialtyIds));
     payload.append("active", String(doctorModal.active));
     payload.append("status", doctorModal.active ? "ATIVO" : "INATIVO");
     payload.append("bio", doctorModal.bio || "");
+    payload.append("consultationPrice", doctorModal.consultationPrice ?? "");
     payload.append("availableDays", JSON.stringify(doctorModal.availableDays || []));
     payload.append("startTime", doctorModal.startTime || "08:00");
     payload.append("endTime", doctorModal.endTime || "18:00");
@@ -163,6 +203,8 @@ export default function AdminPage() {
     const payload = {
       name: specialtyModal.name,
       description: specialtyModal.description || "",
+      consultationPrice: specialtyModal.consultationPrice ?? "",
+      showPricePublicly: specialtyModal.showPricePublicly ?? true,
       active: specialtyModal.active ?? true,
     };
     if (specialtyModal._id) {
@@ -206,10 +248,67 @@ export default function AdminPage() {
   const appointments = data?.appointments || [];
   const users = data?.users || [];
 
+  function getDoctorSpecialtyIds(doctor: AnyRecord | null | undefined) {
+    if (!doctor) return [];
+    const ids = Array.isArray(doctor.specialtyIds) ? doctor.specialtyIds : [];
+    const normalized = ids.map((item: any) => String(item?._id || item)).filter(Boolean);
+    if (normalized.length > 0) return Array.from(new Set(normalized));
+    const primary = doctor.specialtyId ? String(doctor.specialtyId?._id || doctor.specialtyId) : "";
+    return primary ? [primary] : [];
+  }
+
+  function getDoctorSpecialtyNames(doctor: AnyRecord | null | undefined) {
+    return getDoctorSpecialtyIds(doctor)
+      .map((id) => resolveName(specialties.find((item: AnyRecord) => String(item._id) === id)))
+      .filter((name, index, list) => name && list.indexOf(name) === index);
+  }
+
+  function setDoctorSpecialtyIds(nextIds: string[]) {
+    if (!doctorModal) return;
+    setDoctorModal({
+      ...doctorModal,
+      specialtyIds: nextIds,
+      specialtyId: nextIds[0] || "",
+    });
+  }
+
+  function openDoctorModal(item?: AnyRecord) {
+    if (!item) {
+      setDoctorModal({
+        active: true,
+        status: "ATIVO",
+        startTime: "08:00",
+        endTime: "18:00",
+        slotDuration: 30,
+        availableDays: [1, 2, 3, 4, 5],
+        photoUrl: "",
+        photoFile: null,
+        removePhoto: false,
+        bio: "",
+        consultationPrice: "",
+        specialtyIds: [],
+      });
+      return;
+    }
+
+    const specialtyIds = getDoctorSpecialtyIds(item);
+    setDoctorModal({
+      ...item,
+      specialtyIds,
+      specialtyId: specialtyIds[0] || item.specialtyId || "",
+      active: item.active !== false,
+      availableDays: Array.isArray(item.availableDays) ? item.availableDays : [1, 2, 3, 4, 5],
+      photoFile: null,
+      removePhoto: false,
+    });
+  }
+
   return (
     <RoleShell
       userName={data?.user?.name || "Administrador"}
       roleLabel="Administrador"
+      clinicName={data?.clinicSettings?.clinicName || "MediClinic"}
+      clinicLogoUrl={data?.clinicSettings?.logoUrl || ""}
       navItems={navItems}
       active={active}
       onNavigate={setActive}
@@ -219,7 +318,7 @@ export default function AdminPage() {
       }}
     >
       {loading ? (
-        <Card className="p-8 text-sm text-slate-500">Carregando dados do MongoDB...</Card>
+        <Card className="p-8 text-sm text-slate-500">Carregando dados...</Card>
       ) : (
         <>
           {message && <div className="mb-4 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</div>}
@@ -228,7 +327,7 @@ export default function AdminPage() {
             <div>
               <PageHeader
                 title="Dashboard"
-                sub="Visão geral do consultório com dados reais do MongoDB"
+                sub="Visão geral do consultório"
                 action={<Button variant="secondary" onClick={loadData}><RefreshCw className="w-4 h-4" />Atualizar</Button>}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -246,7 +345,7 @@ export default function AdminPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        {["Data", "Hora", "Paciente", "Médico", "Especialidade", "Status"].map((item) => (
+                      {["Data", "Hora", "Paciente", "Médico", "Especialidade", "Status", "Contato"].map((item) => (
                           <th key={item} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">{item}</th>
                         ))}
                       </tr>
@@ -254,7 +353,7 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-slate-50">
                       {appointments.length === 0 ? (
                         <tr>
-                          <td colSpan={6}><Empty label="Nenhuma consulta registrada." /></td>
+                          <td colSpan={7}><Empty label="Nenhuma consulta registrada." /></td>
                         </tr>
                       ) : (
                         appointments.map((item: AnyRecord) => (
@@ -268,6 +367,21 @@ export default function AdminPage() {
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                                 {item.status}
                               </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.status === "AGENDADA" && item.patientId?.phone ? (
+                                <a
+                                  href={buildWhatsAppLink(item.patientId, item)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                  WhatsApp
+                                </a>
+                              ) : (
+                                <span className="text-xs text-slate-400">-</span>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -284,7 +398,7 @@ export default function AdminPage() {
               <PageHeader
                 title="Médicos"
                 sub="Cadastro, edição e inativação de médicos"
-                action={<Button onClick={() => setDoctorModal({ active: true, status: "ATIVO", startTime: "08:00", endTime: "18:00", slotDuration: 30, availableDays: [1, 2, 3, 4, 5], photoUrl: "", photoFile: null, removePhoto: false, bio: "" })}><Plus className="w-4 h-4" />Novo Médico</Button>}
+                action={<Button onClick={() => openDoctorModal()}><Plus className="w-4 h-4" />Novo Médico</Button>}
               />
               <Card>
                 <div className="overflow-x-auto">
@@ -313,7 +427,9 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
                           <td className="px-4 py-3 text-slate-500 font-mono text-xs">{item.crm}</td>
-                          <td className="px-4 py-3 text-slate-600">{resolveName(item.specialtyId)}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {getDoctorSpecialtyNames(item).join(", ") || resolveName(item.specialtyId)}
+                          </td>
                           <td className="px-4 py-3 text-slate-600">{item.email || item.phone || "—"}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.active ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
@@ -322,7 +438,7 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => setDoctorModal(item)}><Edit2 className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => openDoctorModal(item)}><Edit2 className="w-3.5 h-3.5" /></Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -358,7 +474,7 @@ export default function AdminPage() {
               <PageHeader
                 title="Especialidades"
                 sub="Cadastro, edição e inativação de especialidades"
-                action={<Button onClick={() => setSpecialtyModal({ active: true })}><Plus className="w-4 h-4" />Nova Especialidade</Button>}
+                action={<Button onClick={() => setSpecialtyModal({ active: true, showPricePublicly: true, consultationPrice: "" })}><Plus className="w-4 h-4" />Nova Especialidade</Button>}
               />
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {specialties.length === 0 ? (
@@ -463,7 +579,7 @@ export default function AdminPage() {
 
           {active === "appointments" && (
             <div>
-              <PageHeader title="Consultas" sub="Consulta, status e histórico registrado no MongoDB" />
+              <PageHeader title="Consultas" sub="Consulta, status e histórico" />
               <Card>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -565,6 +681,19 @@ export default function AdminPage() {
             </div>
           )}
 
+          {active === "publicPage" && (
+            <div>
+              <PageHeader
+                title="Configurações da Página Pública"
+                sub="Identidade visual, galeria e visibilidade dos preços"
+              />
+              <PublicSettingsForm
+                initialSettings={data?.clinicSettings || {}}
+                onSaved={(clinicSettings) => setData((curr) => (curr ? { ...curr, clinicSettings } : curr))}
+              />
+            </div>
+          )}
+
           {doctorModal && (
             <Modal title={doctorModal._id ? "Editar Médico" : "Novo Médico"} onClose={() => setDoctorModal(null)} wide>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -579,10 +708,56 @@ export default function AdminPage() {
                     onChange={(value) => setDoctorModal({ ...doctorModal, password: value })}
                   />
                 )}
-                <label className="block"><span className="text-sm font-medium text-slate-700">Especialidade</span><Select value={doctorModal.specialtyId?._id || doctorModal.specialtyId || ""} onChange={(e) => setDoctorModal({ ...doctorModal, specialtyId: e.target.value })}>
-                  <option value="">Selecione</option>
-                  {specialties.map((item: AnyRecord) => <option key={item._id} value={item._id}>{item.name}</option>)}
-                </Select></label>
+                <div className="md:col-span-2 block">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-slate-700">Especialidades</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDoctorSpecialtyIds(specialties.map((item: AnyRecord) => String(item._id)).filter(Boolean))}
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        Selecionar todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDoctorSpecialtyIds([])}
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {specialties.map((item: AnyRecord) => {
+                      const selected = getDoctorSpecialtyIds(doctorModal).includes(String(item._id));
+                      return (
+                        <button
+                          key={item._id}
+                          type="button"
+                          onClick={() => {
+                            const current = getDoctorSpecialtyIds(doctorModal);
+                            const next = selected
+                              ? current.filter((id) => id !== String(item._id))
+                              : [...current, String(item._id)];
+                            setDoctorSpecialtyIds(Array.from(new Set(next)));
+                          }}
+                          className={`rounded-2xl border px-4 py-2 text-sm font-medium transition-all ${
+                            selected
+                              ? "border-sky-500 bg-sky-50 text-sky-700 shadow-sm"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {item.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    O médico pode ser vinculado a mais de uma especialidade. A primeira selecionada será mantida como principal para compatibilidade.
+                  </p>
+                </div>
+                <label className="block"><span className="text-sm font-medium text-slate-700">Preço da consulta</span><Input type="number" step="0.01" min="0" value={doctorModal.consultationPrice ?? ""} onChange={(e) => setDoctorModal({ ...doctorModal, consultationPrice: e.target.value })} placeholder="Opcional" /></label>
                 <label className="block"><span className="text-sm font-medium text-slate-700">Status</span><Select value={doctorModal.active ? "true" : "false"} onChange={(e) => setDoctorModal({ ...doctorModal, active: e.target.value === "true" })}>
                   <option value="true">Ativo</option>
                   <option value="false">Inativo</option>
@@ -594,7 +769,7 @@ export default function AdminPage() {
                     currentUrl={doctorModal.photoUrl || ""}
                     onFileChange={(file) => setDoctorModal({ ...doctorModal, photoFile: file, removePhoto: false })}
                     onRemove={() => setDoctorModal({ ...doctorModal, photoFile: null, removePhoto: true })}
-                    helperText="Envie JPG, PNG ou WEBP. A imagem vai para o Cloudinary e o MongoDB guarda apenas a URL."
+                    helperText="Envie JPG, PNG ou WEBP."
                   />
                 </div>
                 <label className="md:col-span-2 block">
@@ -650,6 +825,16 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <label className="block"><span className="text-sm font-medium text-slate-700">Nome</span><Input value={specialtyModal.name || ""} onChange={(e) => setSpecialtyModal({ ...specialtyModal, name: e.target.value })} /></label>
                 <label className="block"><span className="text-sm font-medium text-slate-700">Descrição</span><Textarea value={specialtyModal.description || ""} onChange={(e) => setSpecialtyModal({ ...specialtyModal, description: e.target.value })} /></label>
+                <label className="block"><span className="text-sm font-medium text-slate-700">Preço da consulta</span><Input type="number" step="0.01" min="0" value={specialtyModal.consultationPrice ?? ""} onChange={(e) => setSpecialtyModal({ ...specialtyModal, consultationPrice: e.target.value })} placeholder="Opcional" /></label>
+                <label className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={specialtyModal.showPricePublicly ?? true}
+                    onChange={(e) => setSpecialtyModal({ ...specialtyModal, showPricePublicly: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Mostrar preço publicamente</span>
+                </label>
                 <label className="block"><span className="text-sm font-medium text-slate-700">Status</span><Select value={specialtyModal.active ? "true" : "false"} onChange={(e) => setSpecialtyModal({ ...specialtyModal, active: e.target.value === "true" })}>
                   <option value="true">Ativa</option>
                   <option value="false">Inativa</option>

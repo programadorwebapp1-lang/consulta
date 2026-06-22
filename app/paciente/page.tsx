@@ -243,6 +243,7 @@ export default function PatientPage() {
   const appointments = data?.appointments || [];
   const selectedDoctors = specialtyId ? availability.doctors : [];
   const selectedDoctor = selectedDoctors.find((item: AnyRecord) => item._id === doctorId);
+  const selectedSpecialty = specialties.find((item: AnyRecord) => String(item._id) === String(specialtyId));
   const selectedSchedule = availability.schedule;
 
   const upcoming = useMemo(
@@ -345,6 +346,8 @@ export default function PatientPage() {
     <RoleShell
       userName={data?.user?.name || "Paciente"}
       roleLabel="Paciente"
+      clinicName={data?.clinicSettings?.clinicName || "MediClinic"}
+      clinicLogoUrl={data?.clinicSettings?.logoUrl || ""}
       navItems={navItems}
       active={active}
       onNavigate={(id) => {
@@ -567,7 +570,7 @@ export default function PatientPage() {
                       </div>
                       <div className="flex justify-between border-b border-slate-50 py-2">
                         <span className="text-slate-500">Especialidade</span>
-                        <span className="text-slate-800">{resolveName(selectedDoctor.specialtyId)}</span>
+                        <span className="text-slate-800">{resolveName(selectedSpecialty || selectedDoctor.specialtyId)}</span>
                       </div>
                       <div className="flex justify-between border-b border-slate-50 py-2">
                         <span className="text-slate-500">Dias</span>

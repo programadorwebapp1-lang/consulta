@@ -18,6 +18,9 @@ const AppointmentSchema = new Schema(
       date: { type: String, default: null },
       time: { type: String, default: null },
     },
+    reminderSentAt: { type: Date, default: null },
+    reminderLastError: { type: String, default: null },
+    reminderPayloadSent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

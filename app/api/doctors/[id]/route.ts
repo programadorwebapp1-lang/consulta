@@ -18,6 +18,25 @@ function getBodyValue(body: FormData | Record<string, unknown> | null, key: stri
   return body[key];
 }
 
+function parseSpecialtyIds(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean);
+      }
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 async function readPayload(req: NextRequest) {
   const contentType = req.headers.get("content-type") || "";
   if (contentType.includes("multipart/form-data")) {
@@ -80,9 +99,26 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   if (hasField("name")) updatePayload.name = String(getBodyValue(body, "name") || "").trim();
   if (hasField("phone")) updatePayload.phone = String(getBodyValue(body, "phone") || "").trim();
   if (hasField("bio")) updatePayload.bio = String(getBodyValue(body, "bio") || "");
+  if (hasField("consultationPrice")) {
+    const value = String(getBodyValue(body, "consultationPrice") || "").trim();
+    const parsed = Number(value);
+    updatePayload.consultationPrice = value === "" ? null : Number.isFinite(parsed) ? parsed : null;
+  }
   if (session.role === "ADMIN") {
     if (hasField("crm")) updatePayload.crm = String(getBodyValue(body, "crm") || "").trim();
-    if (hasField("specialtyId")) updatePayload.specialtyId = String(getBodyValue(body, "specialtyId") || "").trim();
+    if (hasField("specialtyIds")) {
+      const specialtyIds = parseSpecialtyIds(getBodyValue(body, "specialtyIds"));
+      if (specialtyIds.length > 0) {
+        updatePayload.specialtyIds = specialtyIds;
+        updatePayload.specialtyId = specialtyIds[0];
+      }
+    } else if (hasField("specialtyId")) {
+      const specialtyId = String(getBodyValue(body, "specialtyId") || "").trim();
+      if (specialtyId) {
+        updatePayload.specialtyId = specialtyId;
+        updatePayload.specialtyIds = [specialtyId];
+      }
+    }
     if (hasField("email")) updatePayload.email = String(getBodyValue(body, "email") || "").trim().toLowerCase();
     if (hasField("active")) {
       const active = String(getBodyValue(body, "active") ?? "true") !== "false";

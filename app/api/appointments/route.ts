@@ -84,7 +84,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.message }, { status: 409 });
   }
 
-  if (String(validation.doctor.specialtyId) !== String(body.specialtyId)) {
+  const allowedSpecialties = new Set(
+    [
+      String(validation.doctor.specialtyId),
+      ...(Array.isArray(validation.doctor.specialtyIds)
+        ? validation.doctor.specialtyIds.map((item: unknown) => String(item))
+        : []),
+    ].filter(Boolean)
+  );
+
+  if (!allowedSpecialties.has(String(body.specialtyId))) {
     return NextResponse.json({ error: "Especialidade não corresponde ao médico selecionado." }, { status: 409 });
   }
 
@@ -132,6 +141,9 @@ export async function PUT(req: NextRequest) {
   current.date = body.date;
   current.time = body.time;
   current.rescheduledFrom = previous as never;
+  current.reminderSentAt = null;
+  current.reminderLastError = null;
+  current.reminderPayloadSent = false;
   await current.save();
 
   return NextResponse.json({ appointment: current });

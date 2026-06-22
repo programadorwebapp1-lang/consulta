@@ -51,7 +51,7 @@ export default function PatientDoctorsPage() {
     }
     const json = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(json.error || "Erro ao carregar médicos.");
+      setError(json.error || "Erro ao carregar medicos.");
       setLoading(false);
       return;
     }
@@ -64,20 +64,33 @@ export default function PatientDoctorsPage() {
   }, []);
 
   const specialties = data?.specialties || [];
+  const specialtiesById = useMemo<Map<string, AnyRecord>>(
+    () => new Map((specialties || []).map((item: AnyRecord) => [String(item._id), item])),
+    [specialties]
+  );
+
   const doctors = useMemo(() => {
     const activeDoctors = (data?.doctors || []).filter(
       (item: AnyRecord) => item.active !== false && item.status !== "INATIVO"
     );
     if (!specialtyFilter) return activeDoctors;
-    return activeDoctors.filter(
-      (item: AnyRecord) => String(item.specialtyId?._id || item.specialtyId) === specialtyFilter
-    );
+    return activeDoctors.filter((item: AnyRecord) => {
+      const specialtyIds = [
+        String(item.specialtyId?._id || item.specialtyId || ""),
+        ...(Array.isArray(item.specialtyIds)
+          ? item.specialtyIds.map((specialty: AnyRecord) => String(specialty?._id || specialty))
+          : []),
+      ].filter(Boolean);
+      return specialtyIds.includes(specialtyFilter);
+    });
   }, [data, specialtyFilter]);
 
   return (
     <RoleShell
       userName={data?.user?.name || "Paciente"}
       roleLabel="Paciente"
+      clinicName={data?.clinicSettings?.clinicName || "MediClinic"}
+      clinicLogoUrl={data?.clinicSettings?.logoUrl || ""}
       navItems={navItems}
       active="doctors"
       onNavigate={(id) => {
@@ -92,19 +105,19 @@ export default function PatientDoctorsPage() {
       }}
     >
       {loading ? (
-        <Card className="p-8 text-sm text-slate-500">Carregando médicos disponíveis...</Card>
+        <Card className="p-8 text-sm text-slate-500">Carregando medicos disponiveis...</Card>
       ) : (
         <div>
           <PageHeader
-            title="Nossos Médicos"
+            title="Nossos Medicos"
             sub="Escolha um profissional por especialidade e inicie o agendamento"
             action={<Button variant="secondary" onClick={() => router.push("/paciente")}>Voltar ao painel</Button>}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <StatCard label="Médicos ativos" value={doctors.length} icon={Stethoscope} color="bg-sky-50 text-sky-600" />
+            <StatCard label="Medicos ativos" value={doctors.length} icon={Stethoscope} color="bg-sky-50 text-sky-600" />
             <StatCard label="Especialidades" value={specialties.length} icon={BadgeCheck} color="bg-violet-50 text-violet-600" />
-            <StatCard label="Lista filtrada" value={specialtyFilter ? "Sim" : "Não"} icon={Users} color="bg-emerald-50 text-emerald-600" />
+            <StatCard label="Lista filtrada" value={specialtyFilter ? "Sim" : "Nao"} icon={Users} color="bg-emerald-50 text-emerald-600" />
           </div>
 
           <Card className="p-5 mb-6">
@@ -130,8 +143,8 @@ export default function PatientDoctorsPage() {
               <Empty
                 label={
                   specialtyFilter
-                    ? "Nenhum médico ativo encontrado para o filtro selecionado."
-                    : "Nenhum médico ativo cadastrado ainda."
+                    ? "Nenhum medico ativo encontrado para o filtro selecionado."
+                    : "Nenhum medico ativo cadastrado ainda."
                 }
               />
             </Card>
@@ -139,7 +152,15 @@ export default function PatientDoctorsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {doctors.map((doctor: AnyRecord) => {
                 const specialtyId = String(doctor.specialtyId?._id || doctor.specialtyId || "");
-                const specialtyName = resolveName(doctor.specialtyId);
+                const specialtyNames = [
+                  specialtiesById.get(specialtyId)?.name,
+                  ...(Array.isArray(doctor.specialtyIds)
+                    ? doctor.specialtyIds.map((specialty: AnyRecord) => {
+                        const specialtyKey = String(specialty?._id || specialty || "");
+                        return specialtiesById.get(specialtyKey)?.name || resolveName(specialty);
+                      })
+                    : []),
+                ].filter((name, index, list) => Boolean(name) && list.indexOf(name) === index);
                 const photoUrl = doctor.photoUrl || "";
 
                 return (
@@ -156,7 +177,7 @@ export default function PatientDoctorsPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-slate-900">{doctor.name}</h3>
-                        <p className="text-sm text-slate-500">{specialtyName}</p>
+                        <p className="text-sm text-slate-500">{specialtyNames.join(" • ") || "Especialidade nao informada"}</p>
                         {doctor.crm && <p className="text-xs text-slate-400 mt-1">CRM {doctor.crm}</p>}
                       </div>
                     </div>
@@ -165,7 +186,7 @@ export default function PatientDoctorsPage() {
                       <p className="text-sm text-slate-600 leading-relaxed">{doctor.bio}</p>
                     ) : (
                       <p className="text-sm text-slate-400 leading-relaxed">
-                        Profissional cadastrado e disponível para atendimento.
+                        Profissional cadastrado e disponivel para atendimento.
                       </p>
                     )}
 

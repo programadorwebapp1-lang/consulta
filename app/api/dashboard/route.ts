@@ -7,6 +7,7 @@ import Patient from "@/models/Patient";
 import Specialty from "@/models/Specialty";
 import Schedule from "@/models/Schedule";
 import Appointment from "@/models/Appointment";
+import ClinicSettings from "@/models/ClinicSettings";
 import { purgeLegacyDoctorPhotoUrls } from "@/lib/doctor-media";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   if (session.role === "ADMIN") {
     await purgeLegacyDoctorPhotoUrls();
-    const [users, doctors, patients, specialties, schedules, appointments] = await Promise.all([
+    const [users, doctors, patients, specialties, schedules, appointments, clinicSettings] = await Promise.all([
       User.find({ role: { $in: ["ADMIN", "MEDICO"] } })
         .select("name email role active")
         .sort({ role: 1, name: 1 })
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
       Specialty.find().lean(),
       Schedule.find().lean(),
       Appointment.find().populate("doctorId").populate("patientId").populate("specialtyId").lean(),
+      ClinicSettings.findOne().lean(),
     ]);
 
     return NextResponse.json({
@@ -40,11 +42,13 @@ export async function GET(req: NextRequest) {
       specialties,
       schedules,
       appointments,
+      clinicSettings,
     });
   }
 
   if (session.role === "MEDICO") {
     await purgeLegacyDoctorPhotoUrls();
+    const clinicSettings = await ClinicSettings.findOne().lean();
     const doctor = await Doctor.findById(session.doctorId).populate("specialtyId").lean();
     const schedule = doctor ? await Schedule.findOne({ doctorId: doctor._id }).lean() : null;
     const appointments = doctor
@@ -56,6 +60,7 @@ export async function GET(req: NextRequest) {
       doctor,
       schedule,
       appointments,
+      clinicSettings,
     });
   }
 
@@ -75,5 +80,6 @@ export async function GET(req: NextRequest) {
     doctors,
     schedules,
     appointments,
+    clinicSettings: await ClinicSettings.findOne().lean(),
   });
 }

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const specialties = specialtyId ? await Specialty.find({ _id: specialtyId, active: true }).lean() : [];
   const doctors = await Doctor.find(
-    specialtyId ? { active: true, specialtyId } : { active: true }
+    specialtyId ? { active: true, $or: [{ specialtyId }, { specialtyIds: specialtyId }] } : { active: true }
   )
     .populate("specialtyId")
     .lean();

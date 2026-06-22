@@ -17,7 +17,17 @@ async function readSession(req: NextRequest) {
   }
 }
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/register", "/api/auth/status", "/api/test-db"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/cadastro",
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/status",
+  "/api/public-clinic",
+  "/api/clinic-settings",
+  "/api/test-db",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -26,15 +36,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isPublic =
+    pathname === "/" ||
+    PUBLIC_PATHS.slice(1).some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const session = await readSession(req);
 
-  if (pathname === "/") {
-    if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
-    return NextResponse.redirect(new URL("/login", req.url));
+  if (pathname === "/login" && session) {
+    return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
 
-  if (pathname === "/login" && session) {
+  if (pathname === "/cadastro" && session) {
     return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
 

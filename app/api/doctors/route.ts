@@ -64,6 +64,25 @@ function parseAvailableDays(value: string) {
   }
 }
 
+function parseSpecialtyIds(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean);
+      }
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req);
   if (!session || session.role !== "ADMIN") {
@@ -91,14 +110,21 @@ export async function POST(req: NextRequest) {
   const password = String(getBodyValue(body, "password") || "");
   const phone = String(getBodyValue(body, "phone") || "").trim();
   const bio = String(getBodyValue(body, "bio") || "");
+  const consultationPriceRaw = getBodyValue(body, "consultationPrice");
+  const specialtyIds = parseSpecialtyIds(getBodyValue(body, "specialtyIds"));
   const active = String(getBodyValue(body, "active") ?? "true") !== "false";
   const availableDaysRaw = String(getBodyValue(body, "availableDays") || "[]");
   const startTime = String(getBodyValue(body, "startTime") || "08:00");
   const endTime = String(getBodyValue(body, "endTime") || "18:00");
   const slotDuration = Number(getBodyValue(body, "slotDuration") || 30);
 
-  if (!name || !crm || !specialtyId || !email) {
-    return NextResponse.json({ error: "Nome, CRM, e-mail e especialidade são obrigatórios." }, { status: 400 });
+  if (!name || !crm || !email) {
+    return NextResponse.json({ error: "Nome, CRM e e-mail são obrigatórios." }, { status: 400 });
+  }
+
+  const resolvedSpecialtyIds = specialtyIds.length ? specialtyIds : specialtyId ? [specialtyId] : [];
+  if (!resolvedSpecialtyIds.length) {
+    return NextResponse.json({ error: "Selecione ao menos uma especialidade." }, { status: 400 });
   }
 
   if (!password) {
@@ -118,6 +144,7 @@ export async function POST(req: NextRequest) {
   }
 
   const passwordHash = await hashPassword(password);
+  const parsedConsultationPrice = Number(consultationPriceRaw);
 
   try {
     const doctor = await Doctor.create({
@@ -125,9 +152,16 @@ export async function POST(req: NextRequest) {
       email,
       phone,
       crm,
-      specialtyId,
+      specialtyId: resolvedSpecialtyIds[0],
+      specialtyIds: resolvedSpecialtyIds,
       photoUrl,
       bio,
+      consultationPrice:
+        consultationPriceRaw === undefined || consultationPriceRaw === null || consultationPriceRaw === ""
+          ? null
+          : Number.isFinite(parsedConsultationPrice)
+            ? parsedConsultationPrice
+            : null,
       status: active ? "ATIVO" : "INATIVO",
       active,
     });

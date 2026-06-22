@@ -18,7 +18,20 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   if (!body) return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
 
   await connectMongo();
-  const specialty = await Specialty.findByIdAndUpdate(id, { ...body }, { new: true });
+  const specialty = await Specialty.findByIdAndUpdate(
+    id,
+    {
+      ...body,
+      consultationPrice:
+        body.consultationPrice === undefined || body.consultationPrice === null || body.consultationPrice === ""
+          ? null
+          : Number.isFinite(Number(body.consultationPrice))
+            ? Number(body.consultationPrice)
+            : null,
+      showPricePublicly: body.showPricePublicly ?? true,
+    },
+    { new: true }
+  );
   if (!specialty) return NextResponse.json({ error: "Especialidade não encontrada." }, { status: 404 });
   return NextResponse.json({ specialty });
 }

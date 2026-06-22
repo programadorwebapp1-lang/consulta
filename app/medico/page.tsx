@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, Eye, EyeOff, FileText, LockKeyhole, RefreshCw, Stethoscope } from "lucide-react";
+import { Calendar, Clock, Eye, EyeOff, FileText, LockKeyhole, MessageCircle, RefreshCw, Stethoscope } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { Button, Card, Empty, Input, Modal, PageHeader, Select, StatCard, Textarea } from "@/components/system-ui";
 import { DAY_NAMES } from "@/lib/medical";
@@ -26,6 +26,33 @@ function resolveName(value: any) {
 
 function canDoctorChangeStatus(status?: string) {
   return status === "AGENDADA" || status === "CONFIRMADA" || status === "EM_ATENDIMENTO";
+}
+
+function cleanPhone(value?: string) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function normalizeWhatsAppPhone(value?: string) {
+  const digits = cleanPhone(value);
+  if (!digits) return "";
+  return digits.startsWith("55") && digits.length > 11 ? digits : `55${digits}`;
+}
+
+function buildWhatsAppLink(patient: AnyRecord, appointment: AnyRecord) {
+  const phone = normalizeWhatsAppPhone(patient?.phone);
+  if (!phone) return "";
+
+  const message = [
+    `Olá, ${resolveName(patient)}!`,
+    "",
+    `Sua consulta está agendada para ${appointment.date} às ${appointment.time}.`,
+    `Especialidade: ${resolveName(appointment.specialtyId)}.`,
+    `Médico: ${resolveName(appointment.doctorId)}.`,
+    "",
+    "Se precisar de ajuda para confirmar ou reagendar, me avise por aqui.",
+  ].join("\n");
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 export default function DoctorPage() {
@@ -59,6 +86,18 @@ export default function DoctorPage() {
     blockSlotTime: "",
     blockReason: "",
   });
+
+  function getDoctorSpecialtyNames(doctor: AnyRecord | null | undefined) {
+    const specialties = data?.specialties || [];
+    const ids = [
+      String(doctor?.specialtyId?._id || doctor?.specialtyId || ""),
+      ...(Array.isArray(doctor?.specialtyIds) ? doctor.specialtyIds.map((item: AnyRecord) => String(item?._id || item)) : []),
+    ].filter(Boolean);
+
+    return ids
+      .map((id) => resolveName(specialties.find((item: AnyRecord) => String(item._id) === id)))
+      .filter((name, index, list) => name && list.indexOf(name) === index);
+  }
 
   async function loadData() {
     setLoading(true);
@@ -249,6 +288,8 @@ export default function DoctorPage() {
     <RoleShell
       userName={data?.user?.name || "Medico"}
       roleLabel="Medico"
+      clinicName={data?.clinicSettings?.clinicName || "MediClinic"}
+      clinicLogoUrl={data?.clinicSettings?.logoUrl || ""}
       navItems={navItems}
       active={active}
       onNavigate={setActive}
@@ -295,21 +336,34 @@ export default function DoctorPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-slate-800 truncate">{resolveName(item.patientId)}</p>
-                          <p className="text-xs text-slate-500">{resolveName(item.specialtyId)}</p>
+                          <p className="text-xs text-slate-500">{getDoctorSpecialtyNames(item).join(", ") || resolveName(item.specialtyId)}</p>
                         </div>
-                        {canDoctorChangeStatus(item.status) ? (
-                          <Select value={item.status} onChange={(e) => updateStatus(item._id, e.target.value)} className="w-44">
-                            {["AGENDADA", "CONFIRMADA", "EM_ATENDIMENTO", "FINALIZADA", "CANCELADA"].map((status) => (
-                              <option key={status} value={status}>
-                                {status}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                            {item.status}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {item.status === "AGENDADA" && item.patientId?.phone ? (
+                            <a
+                              href={buildWhatsAppLink(item.patientId, item)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              WhatsApp
+                            </a>
+                          ) : null}
+                          {canDoctorChangeStatus(item.status) ? (
+                            <Select value={item.status} onChange={(e) => updateStatus(item._id, e.target.value)} className="w-44">
+                              {["AGENDADA", "CONFIRMADA", "EM_ATENDIMENTO", "FINALIZADA", "CANCELADA"].map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </Select>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                              {item.status}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
@@ -320,7 +374,7 @@ export default function DoctorPage() {
 
           {active === "appointments" && (
             <div>
-              <PageHeader title="Consultas" sub="Historico, status e observacoes clinicas" />
+              <PageHeader title="Consultas" sub="Historico, status e observações clinicas" />
               <div className="space-y-3">
                 {appointments.length === 0 ? (
                   <Card className="p-8">
@@ -347,7 +401,18 @@ export default function DoctorPage() {
                             <p className="text-xs text-slate-500 mt-2 bg-slate-50 px-3 py-2 rounded-lg italic">{item.notes}</p>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-2 flex-shrink-0">
+                          <div className="flex flex-wrap gap-2 flex-shrink-0">
+                          {item.status === "AGENDADA" && item.patientId?.phone ? (
+                            <a
+                              href={buildWhatsAppLink(item.patientId, item)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              WhatsApp
+                            </a>
+                          ) : null}
                           <Button
                             variant="secondary"
                             size="sm"
@@ -357,7 +422,7 @@ export default function DoctorPage() {
                             }}
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            Observacoes
+                            Observações
                           </Button>
                           {canDoctorChangeStatus(item.status) ? (
                             <>
@@ -515,7 +580,7 @@ export default function DoctorPage() {
                     </div>
                     <div>
                       <h2 className="font-semibold text-slate-900">{data?.doctor?.name}</h2>
-                      <p className="text-sm text-slate-500">{resolveName(data?.doctor?.specialtyId)}</p>
+                      <p className="text-sm text-slate-500">{getDoctorSpecialtyNames(data?.doctor).join(", ") || resolveName(data?.doctor?.specialtyId)}</p>
                     </div>
                   </div>
 
