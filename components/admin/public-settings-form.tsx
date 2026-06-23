@@ -13,6 +13,7 @@ type Props = {
 
 type LocalState = {
   clinicName: string;
+  cnpj: string;
   logoUrl: string;
   bannerUrl: string;
   description: string;
@@ -28,6 +29,7 @@ type LocalState = {
 
 const EMPTY_STATE: LocalState = {
   clinicName: "",
+  cnpj: "",
   logoUrl: "",
   bannerUrl: "",
   description: "",
@@ -54,6 +56,7 @@ export function PublicSettingsForm({ initialSettings, onSaved }: Props) {
   useEffect(() => {
     setForm({
       clinicName: initialSettings?.clinicName || "",
+      cnpj: initialSettings?.cnpj || "",
       logoUrl: initialSettings?.logoUrl || "",
       bannerUrl: initialSettings?.bannerUrl || "",
       description: initialSettings?.description || "",
@@ -78,6 +81,7 @@ export function PublicSettingsForm({ initialSettings, onSaved }: Props) {
     setSaving(true);
     const payload = new FormData();
     payload.append("clinicName", form.clinicName);
+    payload.append("cnpj", form.cnpj);
     payload.append("description", form.description);
     payload.append("address", form.address);
     payload.append("googleMapsUrl", form.googleMapsUrl);
@@ -171,6 +175,11 @@ export function PublicSettingsForm({ initialSettings, onSaved }: Props) {
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Nome da clínica</span>
             <Input value={form.clinicName} onChange={(e) => setForm((curr) => ({ ...curr, clinicName: e.target.value }))} />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">CNPJ</span>
+            <Input value={form.cnpj} onChange={(e) => setForm((curr) => ({ ...curr, cnpj: e.target.value }))} placeholder="00.000.000/0001-00" />
           </label>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

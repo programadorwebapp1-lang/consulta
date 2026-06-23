@@ -3,6 +3,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 const ClinicSettingsSchema = new Schema(
   {
     clinicName: { type: String, default: "MediClinic" },
+    cnpj: { type: String, default: "" },
     logoUrl: { type: String, default: "" },
     bannerUrl: { type: String, default: "" },
     description: { type: String, default: "" },

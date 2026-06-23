@@ -69,6 +69,7 @@ export async function GET() {
     clinicSettings:
       settings || {
         clinicName: "MediClinic",
+        cnpj: "",
         logoUrl: "",
         bannerUrl: "",
         description: "",
@@ -144,6 +145,7 @@ export async function PUT(req: NextRequest) {
 
     const nextSettings = {
       clinicName: hasField("clinicName") ? asString(getBodyValue(body, "clinicName")) : asString(current.clinicName || "MediClinic"),
+      cnpj: hasField("cnpj") ? asString(getBodyValue(body, "cnpj")) : asString(current.cnpj || ""),
       logoUrl,
       bannerUrl,
       description: hasField("description") ? asString(getBodyValue(body, "description")) : asString(current.description || ""),

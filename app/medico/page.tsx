@@ -28,6 +28,24 @@ function canDoctorChangeStatus(status?: string) {
   return status === "AGENDADA" || status === "CONFIRMADA" || status === "EM_ATENDIMENTO";
 }
 
+function getLocalDateTimeParts() {
+  const now = new Date();
+  const date = now.toLocaleDateString("sv-SE", { timeZone: "America/Rio_Branco" });
+  const time = now.toLocaleTimeString("en-GB", {
+    timeZone: "America/Rio_Branco",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return { date, time };
+}
+
+function canStartAppointment(appointment: AnyRecord) {
+  if (!appointment || appointment.status === "CANCELADA" || appointment.status === "FINALIZADA") return false;
+  const current = getLocalDateTimeParts();
+  return appointment.date < current.date || (appointment.date === current.date && appointment.time <= current.time);
+}
+
 function cleanPhone(value?: string) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -163,7 +181,7 @@ export default function DoctorPage() {
 
   const appointments = data?.appointments || [];
   const today = useMemo(() => {
-    const day = new Date().toISOString().split("T")[0];
+    const day = getLocalDateTimeParts().date;
     return appointments.filter((item: AnyRecord) => item.date === day);
   }, [appointments]);
 
@@ -345,10 +363,15 @@ export default function DoctorPage() {
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                              WhatsApp
-                            </a>
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                                WhatsApp
+                              </a>
+                          ) : null}
+                          {canStartAppointment(item) ? (
+                            <Button size="sm" onClick={() => router.push(`/medico/prontuario/${item._id}`)}>
+                              Iniciar Atendimento
+                            </Button>
                           ) : null}
                           {canDoctorChangeStatus(item.status) ? (
                             <Select value={item.status} onChange={(e) => updateStatus(item._id, e.target.value)} className="w-44">
@@ -437,6 +460,11 @@ export default function DoctorPage() {
                                 </Button>
                               ))}
                             </>
+                          ) : null}
+                          {canStartAppointment(item) ? (
+                            <Button size="sm" onClick={() => router.push(`/medico/prontuario/${item._id}`)}>
+                              Iniciar Atendimento
+                            </Button>
                           ) : null}
                         </div>
                       </div>

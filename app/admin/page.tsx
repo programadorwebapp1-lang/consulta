@@ -70,6 +70,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [doctorModal, setDoctorModal] = useState<AnyRecord | null>(null);
+  const [doctorErrors, setDoctorErrors] = useState<Record<string, string>>({});
   const [specialtyModal, setSpecialtyModal] = useState<AnyRecord | null>(null);
   const [passwordModal, setPasswordModal] = useState<AnyRecord | null>(null);
   const [patientForm, setPatientForm] = useState({
@@ -138,60 +139,79 @@ export default function AdminPage() {
   }, [data]);
 
   async function saveDoctor() {
+    const doctor = doctorModal;
+    if (!doctor) return;
+
     const specialtyIds = Array.isArray(doctorModal?.specialtyIds)
       ? doctorModal.specialtyIds.map((item: any) => String(item)).filter(Boolean)
       : doctorModal?.specialtyId
         ? [String(doctorModal.specialtyId?._id || doctorModal.specialtyId)]
         : [];
 
-    if (!doctorModal?.name || !doctorModal?.crm || specialtyIds.length === 0) {
-      setMessage("Preencha nome, CRM e selecione ao menos uma especialidade.");
+    const nextErrors: Record<string, string> = {};
+    if (!doctor.name?.trim()) nextErrors.name = "Informe o nome do médico.";
+    if (!doctor.crm?.trim()) nextErrors.crm = "Informe o CRM.";
+    if (!doctor.email?.trim()) nextErrors.email = "Informe o e-mail.";
+    if (specialtyIds.length === 0) nextErrors.specialtyIds = "Selecione ao menos uma especialidade.";
+    if (!doctor._id && !doctor.password?.trim()) nextErrors.password = "Crie uma senha para o médico.";
+    if (!doctor._id && doctor.password && String(doctor.password).length < 6) {
+      nextErrors.password = "A senha deve ter pelo menos 6 caracteres.";
+    }
+
+    setDoctorErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setMessage("Corrija os campos destacados antes de salvar.");
       return;
     }
+
     const payload = new FormData();
-    payload.append("name", doctorModal.name);
-    payload.append("email", doctorModal.email || "");
-    payload.append("phone", doctorModal.phone || "");
-    payload.append("crm", doctorModal.crm);
+    payload.append("name", doctor.name);
+    payload.append("email", doctor.email || "");
+    payload.append("phone", doctor.phone || "");
+    payload.append("crm", doctor.crm);
     payload.append("specialtyId", specialtyIds[0]);
     payload.append("specialtyIds", JSON.stringify(specialtyIds));
-    payload.append("active", String(doctorModal.active));
-    payload.append("status", doctorModal.active ? "ATIVO" : "INATIVO");
-    payload.append("bio", doctorModal.bio || "");
-    payload.append("consultationPrice", doctorModal.consultationPrice ?? "");
-    payload.append("availableDays", JSON.stringify(doctorModal.availableDays || []));
-    payload.append("startTime", doctorModal.startTime || "08:00");
-    payload.append("endTime", doctorModal.endTime || "18:00");
-    payload.append("slotDuration", String(doctorModal.slotDuration || 30));
+    payload.append("active", String(doctor.active));
+    payload.append("status", doctor.active ? "ATIVO" : "INATIVO");
+    payload.append("bio", doctor.bio || "");
+    payload.append("consultationPrice", doctor.consultationPrice ?? "");
+    payload.append("availableDays", JSON.stringify(doctor.availableDays || []));
+    payload.append("startTime", doctor.startTime || "08:00");
+    payload.append("endTime", doctor.endTime || "18:00");
+    payload.append("slotDuration", String(doctor.slotDuration || 30));
     payload.append(
       "schedule",
       JSON.stringify({
-        availableDays: doctorModal.availableDays || [],
-        startTime: doctorModal.startTime || "08:00",
-        endTime: doctorModal.endTime || "18:00",
-        slotDuration: doctorModal.slotDuration || 30,
+        availableDays: doctor.availableDays || [],
+        startTime: doctor.startTime || "08:00",
+        endTime: doctor.endTime || "18:00",
+        slotDuration: doctor.slotDuration || 30,
       })
     );
-    if (!doctorModal._id && doctorModal.password) {
-      payload.append("password", doctorModal.password);
+    if (!doctor._id && doctor.password) {
+      payload.append("password", doctor.password);
     }
-    if (doctorModal.photoFile instanceof File) {
-      payload.append("photo", doctorModal.photoFile);
+    if (doctor.photoFile instanceof File) {
+      payload.append("photo", doctor.photoFile);
     }
-    if (doctorModal.removePhoto) {
+    if (doctor.removePhoto) {
       payload.append("removePhoto", "true");
     }
-    if (doctorModal._id) {
-      await request(`/api/doctors/${doctorModal._id}`, {
+    if (doctor._id) {
+      const result = await request(`/api/doctors/${doctor._id}`, {
         method: "PUT",
         body: payload,
       });
+      if (!result) return;
     } else {
-      await request("/api/doctors", {
+      const result = await request("/api/doctors", {
         method: "POST",
         body: payload,
       });
+      if (!result) return;
     }
+    setDoctorErrors({});
     setDoctorModal(null);
   }
 
@@ -274,6 +294,7 @@ export default function AdminPage() {
 
   function openDoctorModal(item?: AnyRecord) {
     if (!item) {
+      setDoctorErrors({});
       setDoctorModal({
         active: true,
         status: "ATIVO",
@@ -292,6 +313,7 @@ export default function AdminPage() {
     }
 
     const specialtyIds = getDoctorSpecialtyIds(item);
+    setDoctorErrors({});
     setDoctorModal({
       ...item,
       specialtyIds,
@@ -695,17 +717,61 @@ export default function AdminPage() {
           )}
 
           {doctorModal && (
-            <Modal title={doctorModal._id ? "Editar Médico" : "Novo Médico"} onClose={() => setDoctorModal(null)} wide>
+            <Modal
+              title={doctorModal._id ? "Editar Médico" : "Novo Médico"}
+              onClose={() => {
+                setDoctorErrors({});
+                setDoctorModal(null);
+              }}
+              wide
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="md:col-span-2 block"><span className="text-sm font-medium text-slate-700">Nome</span><Input value={doctorModal.name || ""} onChange={(e) => setDoctorModal({ ...doctorModal, name: e.target.value })} /></label>
-                <label className="block"><span className="text-sm font-medium text-slate-700">CRM</span><Input value={doctorModal.crm || ""} onChange={(e) => setDoctorModal({ ...doctorModal, crm: e.target.value })} /></label>
-                <label className="block"><span className="text-sm font-medium text-slate-700">E-mail</span><Input value={doctorModal.email || ""} onChange={(e) => setDoctorModal({ ...doctorModal, email: e.target.value })} /></label>
+                <label className="md:col-span-2 block">
+                  <span className="text-sm font-medium text-slate-700">Nome</span>
+                  <Input
+                    value={doctorModal.name || ""}
+                    onChange={(e) => {
+                      setDoctorErrors((curr) => ({ ...curr, name: "" }));
+                      setDoctorModal({ ...doctorModal, name: e.target.value });
+                    }}
+                    className={doctorErrors.name ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : ""}
+                  />
+                  {doctorErrors.name && <p className="mt-1 text-xs text-red-600">{doctorErrors.name}</p>}
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">CRM</span>
+                  <Input
+                    value={doctorModal.crm || ""}
+                    onChange={(e) => {
+                      setDoctorErrors((curr) => ({ ...curr, crm: "" }));
+                      setDoctorModal({ ...doctorModal, crm: e.target.value });
+                    }}
+                    className={doctorErrors.crm ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : ""}
+                  />
+                  {doctorErrors.crm && <p className="mt-1 text-xs text-red-600">{doctorErrors.crm}</p>}
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">E-mail</span>
+                  <Input
+                    value={doctorModal.email || ""}
+                    onChange={(e) => {
+                      setDoctorErrors((curr) => ({ ...curr, email: "" }));
+                      setDoctorModal({ ...doctorModal, email: e.target.value });
+                    }}
+                    className={doctorErrors.email ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : ""}
+                  />
+                  {doctorErrors.email && <p className="mt-1 text-xs text-red-600">{doctorErrors.email}</p>}
+                </label>
                 <label className="block"><span className="text-sm font-medium text-slate-700">Telefone</span><Input value={doctorModal.phone || ""} onChange={(e) => setDoctorModal({ ...doctorModal, phone: e.target.value })} /></label>
                 {!doctorModal._id && (
                   <PasswordInput
                     label="Senha"
                     value={doctorModal.password || ""}
-                    onChange={(value) => setDoctorModal({ ...doctorModal, password: value })}
+                    onChange={(value) => {
+                      setDoctorErrors((curr) => ({ ...curr, password: "" }));
+                      setDoctorModal({ ...doctorModal, password: value });
+                    }}
+                    required
                   />
                 )}
                 <div className="md:col-span-2 block">
@@ -753,6 +819,7 @@ export default function AdminPage() {
                       );
                     })}
                   </div>
+                  {doctorErrors.specialtyIds && <p className="mt-2 text-xs text-red-600">{doctorErrors.specialtyIds}</p>}
                   <p className="mt-2 text-xs text-slate-500">
                     O médico pode ser vinculado a mais de uma especialidade. A primeira selecionada será mantida como principal para compatibilidade.
                   </p>
@@ -814,7 +881,15 @@ export default function AdminPage() {
                 <label className="block"><span className="text-sm font-medium text-slate-700">Duração</span><Input type="number" value={doctorModal.slotDuration || 30} onChange={(e) => setDoctorModal({ ...doctorModal, slotDuration: Number(e.target.value) })} /></label>
               </div>
               <div className="flex justify-end gap-3 mt-6">
-                <Button variant="secondary" onClick={() => setDoctorModal(null)}>Cancelar</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDoctorErrors({});
+                    setDoctorModal(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
                 <Button onClick={saveDoctor}>Salvar</Button>
               </div>
             </Modal>
