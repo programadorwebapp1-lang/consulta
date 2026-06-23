@@ -33,6 +33,19 @@ function activeLabel(active: boolean) {
   return active ? "Ativo" : "Inativo";
 }
 
+function calculateAge(birthDate?: string) {
+  if (!birthDate) return "-";
+  const date = new Date(`${birthDate}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "-";
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? `${age} anos` : "-";
+}
+
 function cleanPhone(value?: string) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -74,12 +87,19 @@ export default function AdminPage() {
   const [specialtyModal, setSpecialtyModal] = useState<AnyRecord | null>(null);
   const [passwordModal, setPasswordModal] = useState<AnyRecord | null>(null);
   const [patientForm, setPatientForm] = useState({
-    name: "",
+    fullName: "",
     email: "",
     password: "",
     phone: "",
     address: "",
     birthDate: "",
+    gender: "",
+    bloodType: "",
+    allergies: "",
+    currentMedications: "",
+    chronicDiseases: "",
+    emergencyContact: "",
+    emergencyPhone: "",
   });
 
   async function loadData() {
@@ -246,7 +266,21 @@ export default function AdminPage() {
       method: "POST",
       body: JSON.stringify(patientForm),
     });
-    setPatientForm({ name: "", email: "", password: "", phone: "", address: "", birthDate: "" });
+    setPatientForm({
+      fullName: "",
+      email: "",
+      password: "",
+      phone: "",
+      address: "",
+      birthDate: "",
+      gender: "",
+      bloodType: "",
+      allergies: "",
+      currentMedications: "",
+      chronicDiseases: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+    });
   }
 
   async function savePassword() {
@@ -396,7 +430,7 @@ export default function AdminPage() {
                                   href={buildWhatsAppLink(item.patientId, item)}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow-md active:translate-y-0"
                                 >
                                   <MessageCircle className="h-4 w-4" />
                                   WhatsApp
@@ -546,23 +580,82 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
                 <Card className="p-5 space-y-4">
                   <h2 className="font-semibold text-slate-800">Novo paciente</h2>
-                  {[
-                    ["name", "Nome"],
-                    ["email", "E-mail"],
-                    ["password", "Senha"],
-                    ["phone", "Telefone"],
-                    ["address", "Endereço"],
-                    ["birthDate", "Data de nascimento"],
-                  ].map(([key, label]) => (
-                    <label key={key} className="block">
-                      <span className="text-sm font-medium text-slate-700">{label}</span>
-                      <Input
-                        value={(patientForm as AnyRecord)[key]}
-                        onChange={(e) => setPatientForm((curr) => ({ ...curr, [key]: e.target.value }))}
-                        type={key === "birthDate" ? "date" : key === "password" ? "password" : "text"}
-                      />
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Nome completo</span>
+                    <Input value={patientForm.fullName} onChange={(e) => setPatientForm((curr) => ({ ...curr, fullName: e.target.value }))} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">E-mail</span>
+                    <Input type="email" value={patientForm.email} onChange={(e) => setPatientForm((curr) => ({ ...curr, email: e.target.value }))} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Senha</span>
+                    <Input type="password" value={patientForm.password} onChange={(e) => setPatientForm((curr) => ({ ...curr, password: e.target.value }))} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Data de nascimento</span>
+                    <Input
+                      type="date"
+                      max={new Date().toISOString().split("T")[0]}
+                      value={patientForm.birthDate}
+                      onChange={(e) => setPatientForm((curr) => ({ ...curr, birthDate: e.target.value }))}
+                    />
+                    {patientForm.birthDate && <p className="mt-1 text-xs text-slate-500">Idade: {calculateAge(patientForm.birthDate)}</p>}
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Sexo</span>
+                    <Select value={patientForm.gender} onChange={(e) => setPatientForm((curr) => ({ ...curr, gender: e.target.value }))}>
+                      <option value="">Selecione</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Feminino">Feminino</option>
+                      <option value="Outro">Outro</option>
+                      <option value="Prefere não informar">Prefere não informar</option>
+                    </Select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Telefone</span>
+                    <Input value={patientForm.phone} onChange={(e) => setPatientForm((curr) => ({ ...curr, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Tipo sanguíneo</span>
+                      <Select value={patientForm.bloodType} onChange={(e) => setPatientForm((curr) => ({ ...curr, bloodType: e.target.value }))}>
+                        <option value="">Não informado</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </Select>
                     </label>
-                  ))}
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Telefone de emergência</span>
+                      <Input value={patientForm.emergencyPhone} onChange={(e) => setPatientForm((curr) => ({ ...curr, emergencyPhone: e.target.value }))} placeholder="(00) 00000-0000" />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Contato de emergência</span>
+                    <Input value={patientForm.emergencyContact} onChange={(e) => setPatientForm((curr) => ({ ...curr, emergencyContact: e.target.value }))} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Endereço</span>
+                    <Textarea value={patientForm.address} onChange={(e) => setPatientForm((curr) => ({ ...curr, address: e.target.value }))} rows={3} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Alergias</span>
+                    <Textarea value={patientForm.allergies} onChange={(e) => setPatientForm((curr) => ({ ...curr, allergies: e.target.value }))} rows={3} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Medicamentos em uso</span>
+                    <Textarea value={patientForm.currentMedications} onChange={(e) => setPatientForm((curr) => ({ ...curr, currentMedications: e.target.value }))} rows={3} />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Doenças crônicas</span>
+                    <Textarea value={patientForm.chronicDiseases} onChange={(e) => setPatientForm((curr) => ({ ...curr, chronicDiseases: e.target.value }))} rows={3} />
+                  </label>
                   <Button onClick={savePatient} className="w-full">Cadastrar paciente</Button>
                 </Card>
 
@@ -581,9 +674,11 @@ export default function AdminPage() {
                           <tr><td colSpan={4}><Empty label="Nenhum paciente cadastrado." /></td></tr>
                         ) : patients.map((item: AnyRecord) => (
                           <tr key={item._id}>
-                            <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
+                            <td className="px-4 py-3 font-medium text-slate-800">{item.fullName || item.name}</td>
                             <td className="px-4 py-3 text-slate-600">{item.email || item.phone}</td>
-                            <td className="px-4 py-3 text-slate-600">{item.birthDate}</td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {item.birthDate ? `${item.birthDate} • ${calculateAge(item.birthDate)}` : "-"}
+                            </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.active ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
                                 {activeLabel(item.active)}
@@ -781,14 +876,14 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={() => setDoctorSpecialtyIds(specialties.map((item: AnyRecord) => String(item._id)).filter(Boolean))}
-                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0"
                       >
                         Selecionar todas
                       </button>
                       <button
                         type="button"
                         onClick={() => setDoctorSpecialtyIds([])}
-                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0"
                       >
                         Limpar
                       </button>

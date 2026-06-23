@@ -504,7 +504,7 @@ export default function PatientPage() {
                                   setDate(item);
                                   setTime("");
                                 }}
-                                className={`rounded-xl border px-3 py-3 text-left text-sm transition-all ${
+                                className={`rounded-xl border px-3 py-3 text-left text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
                                   date === item
                                     ? "bg-sky-600 text-white border-sky-600"
                                     : "bg-slate-50 text-slate-700 border-slate-200 hover:border-sky-200 hover:bg-sky-50"
@@ -537,7 +537,7 @@ export default function PatientPage() {
                                   key={slot}
                                   type="button"
                                   onClick={() => setTime(slot)}
-                                  className={`rounded-xl border px-3 py-2 text-sm font-mono transition-all ${
+                                  className={`rounded-xl border px-3 py-2 text-sm font-mono transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
                                     time === slot
                                       ? "bg-sky-600 text-white border-sky-600"
                                       : "bg-slate-50 text-slate-700 border-slate-200 hover:border-sky-200 hover:bg-sky-50"
@@ -690,7 +690,7 @@ export default function PatientPage() {
                           key={slot}
                           type="button"
                           onClick={() => setRescheduleTime(slot)}
-                          className={`rounded-xl border px-3 py-2 text-sm font-mono transition-all ${
+                          className={`rounded-xl border px-3 py-2 text-sm font-mono transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
                             rescheduleTime === slot
                               ? "bg-sky-600 text-white border-sky-600"
                               : "bg-slate-50 text-slate-700 border-slate-200 hover:border-sky-200 hover:bg-sky-50"

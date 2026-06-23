@@ -56,16 +56,17 @@ function normalizeWhatsAppPhone(value?: string) {
   return digits.startsWith("55") && digits.length > 11 ? digits : `55${digits}`;
 }
 
-function buildWhatsAppLink(patient: AnyRecord, appointment: AnyRecord) {
+function buildWhatsAppLink(patient: AnyRecord, appointment: AnyRecord, doctorName?: string) {
   const phone = normalizeWhatsAppPhone(patient?.phone);
   if (!phone) return "";
+  const resolvedDoctorName = doctorName || resolveName(appointment.doctorId);
 
   const message = [
     `Olá, ${resolveName(patient)}!`,
     "",
     `Sua consulta está agendada para ${appointment.date} às ${appointment.time}.`,
     `Especialidade: ${resolveName(appointment.specialtyId)}.`,
-    `Médico: ${resolveName(appointment.doctorId)}.`,
+    `Médico: ${resolvedDoctorName}.`,
     "",
     "Se precisar de ajuda para confirmar ou reagendar, me avise por aqui.",
   ].join("\n");
@@ -180,6 +181,7 @@ export default function DoctorPage() {
   }
 
   const appointments = data?.appointments || [];
+  const currentDoctorName = resolveName(data?.doctor);
   const today = useMemo(() => {
     const day = getLocalDateTimeParts().date;
     return appointments.filter((item: AnyRecord) => item.date === day);
@@ -357,16 +359,16 @@ export default function DoctorPage() {
                           <p className="text-xs text-slate-500">{getDoctorSpecialtyNames(item).join(", ") || resolveName(item.specialtyId)}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {item.status === "AGENDADA" && item.patientId?.phone ? (
+                          {item.status !== "CANCELADA" && item.status !== "FINALIZADA" && item.patientId?.phone ? (
                             <a
-                              href={buildWhatsAppLink(item.patientId, item)}
+                              href={buildWhatsAppLink(item.patientId, item, currentDoctorName)}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                              >
-                                <MessageCircle className="h-4 w-4" />
-                                WhatsApp
-                              </a>
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow-md active:translate-y-0"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              WhatsApp
+                            </a>
                           ) : null}
                           {canStartAppointment(item) ? (
                             <Button size="sm" onClick={() => router.push(`/medico/prontuario/${item._id}`)}>
@@ -425,12 +427,12 @@ export default function DoctorPage() {
                           )}
                         </div>
                           <div className="flex flex-wrap gap-2 flex-shrink-0">
-                          {item.status === "AGENDADA" && item.patientId?.phone ? (
+                          {item.status !== "CANCELADA" && item.status !== "FINALIZADA" && item.patientId?.phone ? (
                             <a
-                              href={buildWhatsAppLink(item.patientId, item)}
+                              href={buildWhatsAppLink(item.patientId, item, currentDoctorName)}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow-md active:translate-y-0"
                             >
                               <MessageCircle className="h-4 w-4" />
                               WhatsApp
@@ -495,7 +497,7 @@ export default function DoctorPage() {
                                 : [...curr.availableDays, index].sort(),
                             }))
                           }
-                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
                             scheduleForm.availableDays.includes(index)
                               ? "bg-sky-600 text-white"
                               : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -755,7 +757,7 @@ function PasswordField({
         <button
           type="button"
           onClick={onToggle}
-          className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
+          className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 transition-colors hover:text-slate-700"
           aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
         >
           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

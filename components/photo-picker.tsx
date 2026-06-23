@@ -94,7 +94,7 @@ export function PhotoPicker({ label, currentUrl = "", name, onFileChange, onRemo
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
+            className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-md active:translate-y-0"
           >
             <Upload className="w-4 h-4" />
             Enviar foto
@@ -103,7 +103,7 @@ export function PhotoPicker({ label, currentUrl = "", name, onFileChange, onRemo
             <button
               type="button"
               onClick={clearPhoto}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-200 hover:shadow-md active:translate-y-0"
             >
               <Trash2 className="w-4 h-4" />
               Remover

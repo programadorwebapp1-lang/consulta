@@ -5,11 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle, Stethoscope } from "lucide-react";
-import { Input, Button } from "@/components/system-ui";
+import { Input, Button, Select } from "@/components/system-ui";
 import { PasswordInput } from "@/components/password-input";
 import type { FormEvent } from "react";
 
 type Mode = "login" | "signup";
+type PatientGender = "Masculino" | "Feminino" | "Outro" | "Prefere não informar" | "";
 
 type Props = {
   defaultMode?: Mode;
@@ -24,6 +25,23 @@ function safeNextPath(value: string | null) {
   if (!value.startsWith("/")) return "";
   if (value.startsWith("//")) return "";
   return value;
+}
+
+function calculateAge(birthDate: string) {
+  if (!birthDate) return "";
+  const date = new Date(`${birthDate}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? `${age} anos` : "";
+}
+
+function cleanPhone(value: string) {
+  return value.replace(/\D/g, "");
 }
 
 export function AuthPage({
@@ -47,6 +65,9 @@ export function AuthPage({
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
+  const [patientFullName, setPatientFullName] = useState("");
+  const [patientBirthDate, setPatientBirthDate] = useState("");
+  const [patientGender, setPatientGender] = useState<PatientGender>("");
   const [patientPhone, setPatientPhone] = useState("");
   const [patientPassword, setPatientPassword] = useState("");
 
@@ -133,8 +154,11 @@ export function AuthPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         role: "PACIENTE",
+        fullName: patientFullName,
+        birthDate: patientBirthDate,
+        gender: patientGender,
         email: patientEmail,
-        phone: patientPhone,
+        phone: cleanPhone(patientPhone),
         password: patientPassword,
       }),
     });
@@ -190,7 +214,7 @@ export function AuthPage({
                 <button
                   type="button"
                   onClick={() => setMode("login")}
-                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
                     mode === "login" ? "bg-sky-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -199,7 +223,7 @@ export function AuthPage({
                 <button
                   type="button"
                   onClick={() => setMode("signup")}
-                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
                     mode === "signup" ? "bg-sky-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -229,15 +253,42 @@ export function AuthPage({
               ) : (
                 <form onSubmit={registerPatient} className="space-y-4">
                   <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Nome completo</span>
+                    <Input value={patientFullName} onChange={(e) => setPatientFullName(e.target.value)} required />
+                  </label>
+                  <label className="block">
                     <span className="text-sm font-medium text-slate-700">E-mail</span>
                     <Input type="email" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} required />
                   </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Data de nascimento</span>
+                      <Input
+                        type="date"
+                        value={patientBirthDate}
+                        max={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setPatientBirthDate(e.target.value)}
+                        required
+                      />
+                      {patientBirthDate && <p className="mt-1 text-xs text-slate-500">Idade: {calculateAge(patientBirthDate)}</p>}
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Sexo</span>
+                      <Select value={patientGender} onChange={(e) => setPatientGender(e.target.value as PatientGender)} required>
+                        <option value="">Selecione</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Feminino">Feminino</option>
+                        <option value="Outro">Outro</option>
+                        <option value="Prefere não informar">Prefere não informar</option>
+                      </Select>
+                    </label>
+                  </div>
                   <label className="block">
                     <span className="text-sm font-medium text-slate-700">Telefone</span>
                     <Input value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} required placeholder="(00) 00000-0000" />
                   </label>
                   <PasswordInput label="Senha" value={patientPassword} onChange={setPatientPassword} required />
-                  {error && <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-700 text-sm"><AlertCircle className="w-4 h-4" />{error}</div>}
+                  {error && <div className="flex items-center gap-2 p-3 hover:bg-red-50 rounded-xl text-red-700 text-sm"><AlertCircle className="w-4 h-4" />{error}</div>}
                   <Button type="submit" disabled={loading} className="w-full">{loading ? "Criando..." : "Criar conta"}</Button>
                 </form>
               )}

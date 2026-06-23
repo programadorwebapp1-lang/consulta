@@ -24,8 +24,16 @@ type PersonInfo = {
   name: string;
   cpf?: string;
   birthDate?: string;
+  gender?: string;
+  age?: string;
   phone?: string;
   email?: string;
+  bloodType?: string;
+  allergies?: string;
+  currentMedications?: string;
+  chronicDiseases?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
 };
 
 type DoctorInfo = {
@@ -351,8 +359,16 @@ class PdfWriter {
           this.input.patient.name,
           this.input.patient.cpf ? `CPF: ${this.input.patient.cpf}` : "",
           this.input.patient.birthDate ? `Nascimento: ${formatDateOnly(this.input.patient.birthDate)}` : "",
+          this.input.patient.gender ? `Sexo: ${this.input.patient.gender}` : "",
+          this.input.patient.age ? `Idade: ${this.input.patient.age}` : "",
           this.input.patient.phone ? `Telefone: ${this.input.patient.phone}` : "",
           this.input.patient.email ? `E-mail: ${this.input.patient.email}` : "",
+          this.input.patient.allergies ? `Alergias: ${this.input.patient.allergies}` : "",
+          this.input.patient.currentMedications ? `Medicamentos: ${this.input.patient.currentMedications}` : "",
+          this.input.patient.chronicDiseases ? `Doenças crônicas: ${this.input.patient.chronicDiseases}` : "",
+          this.input.patient.bloodType ? `Tipo sanguíneo: ${this.input.patient.bloodType}` : "",
+          this.input.patient.emergencyContact ? `Contato de emergência: ${this.input.patient.emergencyContact}` : "",
+          this.input.patient.emergencyPhone ? `Tel. emergência: ${this.input.patient.emergencyPhone}` : "",
         ].filter(Boolean),
       },
       {
@@ -365,7 +381,7 @@ class PdfWriter {
       },
     ];
 
-    const cardHeight = 76;
+    const cardHeight = 132;
     this.ensureSpace(cardHeight + 10);
     const y = this.current().y - cardHeight;
     const gap = 14;
@@ -693,4 +709,3 @@ export async function createTextPdf(title: string, blocks: Array<{ label?: strin
     },
   });
 }
-

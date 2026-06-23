@@ -28,32 +28,54 @@ export async function POST(req: NextRequest) {
   await connectMongo();
   await removeLegacyPatientCpfIndex();
   const body = await req.json().catch(() => null);
-  if (!body?.name || !body?.email) {
-    return NextResponse.json({ error: "Nome e e-mail são obrigatórios." }, { status: 400 });
+  const fullName = String(body?.fullName || body?.name || "").trim();
+  const email = String(body?.email || "").toLowerCase().trim();
+  const phone = String(body?.phone || "").trim();
+  const birthDate = String(body?.birthDate || "").trim();
+  const gender = String(body?.gender || "").trim();
+
+  if (!fullName || !email || !phone || !birthDate || !gender) {
+    return NextResponse.json({ error: "Nome completo, e-mail, telefone, data de nascimento e sexo são obrigatórios." }, { status: 400 });
   }
 
   if (!body.password) {
     return NextResponse.json({ error: "Senha do paciente é obrigatória." }, { status: 400 });
   }
 
-  const existingUser = await User.findOne({ email: String(body.email).toLowerCase() });
+  const date = new Date(`${birthDate}T12:00:00`);
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const birthDateValue = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  if (Number.isNaN(date.getTime()) || birthDateValue > todayDate) {
+    return NextResponse.json({ error: "Informe uma data de nascimento válida." }, { status: 400 });
+  }
+
+  const existingUser = await User.findOne({ email });
   if (existingUser) {
     return NextResponse.json({ error: "E-mail já cadastrado." }, { status: 409 });
   }
 
   const patient = await Patient.create({
-    name: body.name,
-    email: String(body.email).toLowerCase(),
-    phone: body.phone || "",
+    name: fullName,
+    fullName,
+    email,
+    phone,
     address: body.address || "",
-    birthDate: body.birthDate || "",
+    birthDate,
+    gender,
+    bloodType: body.bloodType || "",
+    allergies: body.allergies || "",
+    currentMedications: body.currentMedications || "",
+    chronicDiseases: body.chronicDiseases || "",
+    emergencyContact: body.emergencyContact || "",
+    emergencyPhone: body.emergencyPhone || "",
     active: body.active ?? true,
   });
 
   const passwordHash = await hashPassword(String(body.password));
   const user = await User.create({
-    name: body.name,
-    email: String(body.email).toLowerCase(),
+    name: fullName,
+    email,
     passwordHash,
     role: "PACIENTE",
     patientId: patient._id,

@@ -221,11 +221,11 @@ export default function ProntuarioPage() {
     });
     const json = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setMessage(json.error || "Nao foi possivel concluir a acao.");
-      await fireSwal({ icon: "error", title: "Erro", text: json.error || "Nao foi possivel concluir a acao." });
+      setMessage(json.error || "Não foi possivel concluir a ação.");
+      await fireSwal({ icon: "error", title: "Erro", text: json.error || "Não foi possivel concluir a ação." });
       return null;
     }
-    setMessage("Alteracao salva com sucesso.");
+    setMessage("Alteração  salva com sucesso.");
     return json;
   }
 
@@ -345,6 +345,18 @@ export default function ProntuarioPage() {
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 text-sm">
                 <Info label="Telefone" value={patient?.phone || "-"} />
                 <Info label="E-mail" value={patient?.email || "-"} />
+                <Info label="Sexo" value={patient?.gender || "-"} />
+                <Info label="Idade" value={patientAge || "-"} />
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                <Info label="Tipo sanguíneo" value={patient?.bloodType || "-"} />
+                <Info label="Alergias" value={patient?.allergies || "-"} />
+                <Info label="Medicamentos em uso" value={patient?.currentMedications || "-"} />
+                <Info label="Doenças crônicas" value={patient?.chronicDiseases || "-"} />
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                <Info label="Contato de emergência" value={patient?.emergencyContact || "-"} />
+                <Info label="Telefone de emergência" value={patient?.emergencyPhone || "-"} />
                 <Info label="Especialidade" value={resolveName(specialty)} />
                 <Info label="Médico" value={resolveName(doctor)} />
               </div>
@@ -595,7 +607,7 @@ export default function ProntuarioPage() {
                     key={exam}
                     type="button"
                     onClick={() => addExamItem(exam)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0"
                   >
                     {exam}
                   </button>
@@ -611,7 +623,11 @@ export default function ProntuarioPage() {
                 {examItems.map((exam) => (
                   <span key={exam} className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-2 text-sm text-sky-700">
                     {exam}
-                    <button type="button" onClick={() => setExamItems((curr) => curr.filter((item) => item !== exam))} className="text-sky-500">
+                    <button
+                      type="button"
+                      onClick={() => setExamItems((curr) => curr.filter((item) => item !== exam))}
+                      className="text-sky-500 transition-colors hover:text-sky-700"
+                    >
                       ×
                     </button>
                   </span>
@@ -786,7 +802,7 @@ function Toggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-all ${
+      className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 ${
         checked ? "border-sky-500 bg-sky-50 text-sky-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
       }`}
     >
@@ -808,7 +824,7 @@ function DocumentList({ documents }: { documents: AnyRecord[] }) {
           href={doc.pdfUrl}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
+          className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm active:translate-y-0"
         >
           <span>PDF emitido em {formatDateBR(doc.createdAt)}</span>
           <span className="text-sky-600">Abrir</span>

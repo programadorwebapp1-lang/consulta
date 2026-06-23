@@ -168,8 +168,15 @@ export function buildPatientSnapshot(patient: Record<string, any> | null | undef
     name: String(patient.name || ""),
     birthDate: String(patient.birthDate || ""),
     age: calculateAge(String(patient.birthDate || "")),
+    gender: String(patient.gender || ""),
     phone: String(patient.phone || ""),
     email: String(patient.email || ""),
+    bloodType: String(patient.bloodType || ""),
+    allergies: String(patient.allergies || ""),
+    currentMedications: String(patient.currentMedications || ""),
+    chronicDiseases: String(patient.chronicDiseases || ""),
+    emergencyContact: String(patient.emergencyContact || ""),
+    emergencyPhone: String(patient.emergencyPhone || ""),
   };
 }
 

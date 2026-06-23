@@ -17,6 +17,24 @@ function buildPatientName(email: string) {
     .replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
 }
 
+function normalizeText(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeDigits(value: unknown) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function isValidBirthDate(value: string) {
+  if (!value) return false;
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const birthDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return birthDate <= todayDate;
+}
+
 export async function POST(req: NextRequest) {
   try {
     await connectMongo();
@@ -30,8 +48,16 @@ export async function POST(req: NextRequest) {
 
     const email = String(body.email || "").toLowerCase().trim();
     const password = String(body.password || "");
-    const phone = String(body.phone || "").trim();
-    const name = String(body.name || "").trim() || buildPatientName(email);
+    const phone = normalizeDigits(body.phone);
+    const name = normalizeText(body.fullName || body.name) || buildPatientName(email);
+    const birthDate = normalizeText(body.birthDate);
+    const gender = normalizeText(body.gender);
+    const bloodType = normalizeText(body.bloodType);
+    const allergies = normalizeText(body.allergies);
+    const currentMedications = normalizeText(body.currentMedications);
+    const chronicDiseases = normalizeText(body.chronicDiseases);
+    const emergencyContact = normalizeText(body.emergencyContact);
+    const emergencyPhone = normalizeDigits(body.emergencyPhone);
 
     if (existingUsers === 0) {
       if (body.role !== "ADMIN") {
@@ -66,8 +92,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cadastro público disponível apenas para pacientes." }, { status: 403 });
     }
 
-    if (!body.email || !body.phone || !body.password) {
-      return NextResponse.json({ error: "E-mail, telefone e senha são obrigatórios." }, { status: 400 });
+    if (!email || !phone || !password || !name || !birthDate || !gender) {
+      return NextResponse.json({ error: "Nome completo, data de nascimento, sexo, e-mail, telefone e senha são obrigatórios." }, { status: 400 });
+    }
+
+    if (!isValidBirthDate(birthDate)) {
+      return NextResponse.json({ error: "Informe uma data de nascimento válida." }, { status: 400 });
     }
 
     const existingUser = await User.findOne({ email });
@@ -78,9 +108,17 @@ export async function POST(req: NextRequest) {
     const passwordHash = await hashPassword(password);
     const patient = await Patient.create({
       name,
+      fullName: name,
       email,
       phone,
-      birthDate: body.birthDate || "",
+      birthDate,
+      gender,
+      bloodType,
+      allergies,
+      currentMedications,
+      chronicDiseases,
+      emergencyContact,
+      emergencyPhone,
       active: true,
     });
 
